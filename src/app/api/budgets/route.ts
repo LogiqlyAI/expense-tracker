@@ -34,20 +34,25 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Amount must be a non-negative number" }, { status: 400 });
   }
 
-  const budget = await prisma.budget.upsert({
-    where: {
-      userId_category: {
-        userId: session.user.id,
-        category: category || null,
-      },
-    },
-    update: { amount },
-    create: {
-      userId: session.user.id,
-      category: category || null,
-      amount,
-    },
+  const cat = category || null;
+
+  // Prisma upsert doesn't work with null in composite unique keys (NULL != NULL in SQL)
+  // So we manually find + update or create
+  const existing = await prisma.budget.findFirst({
+    where: { userId: session.user.id, category: cat },
   });
+
+  let budget;
+  if (existing) {
+    budget = await prisma.budget.update({
+      where: { id: existing.id },
+      data: { amount },
+    });
+  } else {
+    budget = await prisma.budget.create({
+      data: { userId: session.user.id, category: cat, amount },
+    });
+  }
 
   return NextResponse.json({ budget });
 }

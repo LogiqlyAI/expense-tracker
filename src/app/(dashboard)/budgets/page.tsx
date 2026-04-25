@@ -93,25 +93,45 @@ export default function BudgetsPage() {
     const key = category || "overall";
     setSaving(key);
 
-    if (amount === 0) {
-      // Delete the budget
-      await fetch("/api/budgets", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category }),
-      });
-      toast.success(`${category ? CATEGORY_LABELS[category] : "Overall"} budget removed`);
-    } else {
-      await fetch("/api/budgets", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category, amount }),
-      });
-      toast.success(`${category ? CATEGORY_LABELS[category] : "Overall"} budget saved`);
+    try {
+      if (amount === 0) {
+        await fetch("/api/budgets", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category }),
+        });
+        // Remove from local state
+        setBudgets((prev) => prev.filter((b) => b.category !== category));
+        toast.success(`${category ? CATEGORY_LABELS[category] : "Overall"} budget removed`);
+      } else {
+        const res = await fetch("/api/budgets", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category, amount }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.error || "Failed to save budget");
+          setSaving(null);
+          return;
+        }
+        // Update local state without refetching
+        setBudgets((prev) => {
+          const idx = prev.findIndex((b) => b.category === category);
+          if (idx >= 0) {
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], amount };
+            return updated;
+          }
+          return [...prev, data.budget];
+        });
+        toast.success(`${category ? CATEGORY_LABELS[category] : "Overall"} budget saved`);
+      }
+    } catch {
+      toast.error("Failed to save budget");
     }
 
     setSaving(null);
-    fetchData();
   }
 
   function getBudgetForCategory(category: string): number {
