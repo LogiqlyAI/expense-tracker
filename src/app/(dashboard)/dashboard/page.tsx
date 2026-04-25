@@ -327,7 +327,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {getCurrencySymbol(expense.currency)}{expense.amount.toFixed(2)}
+                      {getCurrencySymbol(expense.currency)}{(expense.amount * expense.quantity).toFixed(2)}
                     </span>
                   </div>
                 ))}

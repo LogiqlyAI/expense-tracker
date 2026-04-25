@@ -131,12 +131,13 @@ export default function ExpensesPage() {
 
   function exportCSV() {
     if (expenses.length === 0) return;
-    const header = "Merchant,Amount,Quantity,Currency,Date,Category,Description";
+    const header = "Merchant,Amount,Quantity,Total,Currency,Date,Category,Description";
     const rows = expenses.map((e) =>
       [
         `"${e.merchant.replace(/"/g, '""')}"`,
         e.amount.toFixed(2),
         e.quantity,
+        (e.amount * e.quantity).toFixed(2),
         e.currency,
         e.date.split("T")[0],
         e.category,
@@ -347,8 +348,8 @@ export default function ExpensesPage() {
                       type="number"
                       min="1"
                       step="1"
-                      value={editForm.quantity || 1}
-                      onChange={(e) => setEditForm({ ...editForm, quantity: parseInt(e.target.value) })}
+                      value={editForm.quantity ?? ""}
+                      onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value === "" ? undefined : parseInt(e.target.value) })}
                       placeholder="Qty"
                       className={inputClass}
                     />
@@ -415,7 +416,7 @@ export default function ExpensesPage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {getCurrencySymbol(expense.currency)}{expense.amount.toFixed(2)}
+                      {getCurrencySymbol(expense.currency)}{(expense.amount * expense.quantity).toFixed(2)}
                     </span>
                     <button
                       onClick={() => startEdit(expense)}

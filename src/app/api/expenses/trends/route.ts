@@ -20,33 +20,26 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(d.getFullYear(), d.getMonth(), 1);
     const endDate = new Date(d.getFullYear(), d.getMonth() + 1, 1);
 
-    const [aggregate, categoryTotals] = await Promise.all([
-      prisma.expense.aggregate({
-        where: {
-          userId: session.user.id,
-          date: { gte: startDate, lt: endDate },
-        },
-        _sum: { amount: true },
-      }),
-      prisma.expense.groupBy({
-        by: ["category"],
-        where: {
-          userId: session.user.id,
-          date: { gte: startDate, lt: endDate },
-        },
-        _sum: { amount: true },
-      }),
-    ]);
+    const expenses = await prisma.expense.findMany({
+      where: {
+        userId: session.user.id,
+        date: { gte: startDate, lt: endDate },
+      },
+      select: { amount: true, quantity: true, category: true },
+    });
 
+    let total = 0;
     const categories: Record<string, number> = {};
-    for (const ct of categoryTotals) {
-      categories[ct.category] = ct._sum.amount || 0;
+    for (const e of expenses) {
+      const lineTotal = e.amount * e.quantity;
+      total += lineTotal;
+      categories[e.category] = (categories[e.category] || 0) + lineTotal;
     }
 
     results.push({
       month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
       label: d.toLocaleString("default", { month: "short" }),
-      total: aggregate._sum.amount || 0,
+      total,
       categories,
     });
   }

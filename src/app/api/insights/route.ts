@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     const expenseData = expenses.map((e) => ({
       merchant: e.merchant,
-      amount: e.amount,
+      amount: e.amount * e.quantity,
       currency: e.currency,
       date: e.date.toISOString().split("T")[0],
       category: e.category,
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     const prevExpenseData = previousExpenses.map((e) => ({
       merchant: e.merchant,
-      amount: e.amount,
+      amount: e.amount * e.quantity,
       currency: e.currency,
       date: e.date.toISOString().split("T")[0],
       category: e.category,

@@ -16,36 +16,37 @@ export async function GET(request: NextRequest) {
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 1);
 
-  const [categoryTotals, aggregates] = await Promise.all([
-    prisma.expense.groupBy({
-      by: ["category"],
-      where: {
-        userId: session.user.id,
-        date: { gte: startDate, lt: endDate },
-      },
-      _sum: { amount: true },
-      _count: true,
-    }),
-    prisma.expense.aggregate({
-      where: {
-        userId: session.user.id,
-        date: { gte: startDate, lt: endDate },
-      },
-      _sum: { amount: true },
-      _count: true,
-    }),
-  ]);
+  const expenses = await prisma.expense.findMany({
+    where: {
+      userId: session.user.id,
+      date: { gte: startDate, lt: endDate },
+    },
+    select: { amount: true, quantity: true, category: true },
+  });
 
-  const categories = categoryTotals.map((ct) => ({
-    category: ct.category,
-    total: ct._sum.amount || 0,
-    count: ct._count,
+  const categoryMap: Record<string, { total: number; count: number }> = {};
+  let totalSpent = 0;
+
+  for (const e of expenses) {
+    const lineTotal = e.amount * e.quantity;
+    totalSpent += lineTotal;
+    if (!categoryMap[e.category]) {
+      categoryMap[e.category] = { total: 0, count: 0 };
+    }
+    categoryMap[e.category].total += lineTotal;
+    categoryMap[e.category].count += 1;
+  }
+
+  const categories = Object.entries(categoryMap).map(([category, data]) => ({
+    category,
+    total: data.total,
+    count: data.count,
   }));
 
   return NextResponse.json({
     categories,
-    totalSpent: aggregates._sum.amount || 0,
-    expenseCount: aggregates._count,
+    totalSpent,
+    expenseCount: expenses.length,
     year,
     month,
   });
