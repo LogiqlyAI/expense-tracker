@@ -84,18 +84,30 @@ export default function ScanModal({ open, onClose, onSaved }: ScanModalProps) {
   async function startCamera() {
     setError("");
     setInputMode("camera");
+
+    // Check if camera API is available
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Camera is not supported on this device/browser. Please use file upload instead.");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       streamRef.current = stream;
       setCameraActive(true);
-      // Wait for video element to be rendered
-      requestAnimationFrame(() => {
+
+      // Retry attaching stream until video element is rendered
+      const attachStream = () => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        } else {
+          setTimeout(attachStream, 50);
         }
-      });
+      };
+      requestAnimationFrame(attachStream);
     } catch {
       setError("Could not access camera. Please check permissions or use file upload instead.");
     }
@@ -325,7 +337,15 @@ export default function ScanModal({ open, onClose, onSaved }: ScanModalProps) {
                   </button>
 
                   <button
-                    onClick={startCamera}
+                    onClick={() => {
+                      // On mobile, use native camera input; on desktop, use live viewfinder
+                      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                      if (isMobile) {
+                        document.getElementById("cameraInput")?.click();
+                      } else {
+                        startCamera();
+                      }
+                    }}
                     className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed p-6 transition-colors"
                     style={{ borderColor: "var(--border-light)", backgroundColor: "var(--bg-primary)" }}
                   >
@@ -345,6 +365,16 @@ export default function ScanModal({ open, onClose, onSaved }: ScanModalProps) {
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+
+              {/* Native camera input for mobile — opens camera app directly */}
+              <input
+                id="cameraInput"
+                type="file"
+                accept="image/*"
+                capture="environment"
                 onChange={handleFileSelect}
                 className="hidden"
               />
